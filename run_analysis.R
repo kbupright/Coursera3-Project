@@ -1,7 +1,7 @@
 ## This script will download the UCI HAR Dataset from, unzip it, read the
 ## training and test files and merge them into a single tidy data set with 
 ## averages of the variables associated with the mean and standard deviation.
-## It will write this dataset to a file called 'tidyset'
+## It will write this dataset to a file called 'tidyset.txt'
 
 ## this script requires the use of the plyr and dplyr packages
 
@@ -37,6 +37,7 @@ subtest <- read.table("./data/UCI HAR Dataset/test/subject_test.txt")
 # features file contains the column names. these will be cast as character
 features <- features[2]
 features[] <- lapply(features, as.character)
+
 # set the column names in each file
 colnames(xtest) <- features[[1]]
 colnames(xtrain) <- features[[1]]
@@ -46,8 +47,10 @@ colnames(ytest) <- c('activity')
 colnames(ytrain) <- c('activity')
 
 # remove columns not associated with standard deviation or mean
-xtest <- xtest[, grep("std|mean", features[[1]])]
-xtrain <- xtrain[, grep("std|mean", features[[1]])]
+colList <- setdiff(grep("std|mean", features[[1]]), 
+                   grep("meanFreq", features[[1]]))
+xtest <- xtest[, colList]
+xtrain <- xtrain[, colList]
 
 # Bind subject and action to data set and combine to a single set
 # cast subject as a factor
@@ -56,6 +59,14 @@ xtrain <- cbind(subtrain, ytrain, xtrain)
 data <- rbind(xtest, xtrain)
 data <- arrange(data, subject, activity)
 data$subject <- as.factor(data$subject)
+
+## update column names to include time and freq notation for readability
+# and remove the extraneous '()'
+t <- substring(names(data), 1, 1) == "t"
+f <- substring(names(data), 1, 1) == "f"
+colnames(data)[t] <- sub("t", "AvgTime", names(data)[t])
+colnames(data)[f] <- sub("f", "AvgFreq", names(data)[f])
+colnames(data) <- gsub("\\()", "", names(data))
 
 # update the 'activity' to have the matching label[2]
 data <- mutate(data, activity = labels[activity, 2])
@@ -66,4 +77,4 @@ data <- group_by(data, subject, activity)
 data <- summarise_each(data, funs(mean))
 
 # write table to 'tidyset'
-write.table(data, file = "./data/tidyset", row.names = FALSE)
+write.table(data, file = "./data/tidyset.txt", row.names = FALSE)
